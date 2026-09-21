@@ -1,0 +1,45 @@
+---
+description: Run only the affected Playwright tests successfully 3 times locally before any git push
+alwaysApply: true
+---
+
+# Local Test Gate Before Push
+
+Never push to GitHub until the tests affected by the change have passed **3 consecutive times** locally.
+
+## When this applies
+
+- Before `git push` / `gh` push of any branch that includes test or product-UI changes
+- Before creating a PR that depends on those changes being green
+
+## Scope the run
+
+Find what changed against the default branch (`main`, or your branch's actual base), committed and uncommitted:
+
+```bash
+rtk git diff --name-only main -- '*.ts'
+rtk git status --porcelain -- '*.ts'   # untracked new files
+```
+
+Pick the narrowest command that still covers every changed path:
+
+| Changed paths | Run |
+|---|---|
+| Only `tests/**/*.spec.ts` files (changed or new) | `rtk npx playwright test <changed spec paths>` |
+| `fixtures/ui.ts`, `pages/**`, or anything under `tests/ui/` | `rtk npx playwright test --project=ui` |
+| `fixtures/api.ts`, `api/**`, `dto/**`, or anything under `tests/api/` | `rtk npx playwright test --project=api` |
+| `playwright.config.ts`, or paths spanning both projects | `rtk npx playwright test` |
+
+## Required steps
+
+1. Run the scoped command from the table above.
+2. Repeat until you have **3 consecutive successful runs** with exit code `0`.
+3. If any run fails, fix the issue, then restart the count from zero.
+4. Only after 3 consecutive passes, push (and open a PR if asked).
+
+## Do not
+
+- Run the full suite when the changed/new spec files alone would cover it
+- Push after a single green run
+- Count failed or flaky runs toward the 3
+- Skip re-running after a fix — a fix resets the streak

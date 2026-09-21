@@ -1,0 +1,51 @@
+---
+description: Ban try/catch (and try/finally) in Playwright specs; push cleanup/error handling to fixtures or the API/page-object layer
+globs: "tests/**/*.spec.ts"
+alwaysApply: false
+---
+
+# No try/catch in Specs
+
+Specs assert outcomes; they must not contain `try`/`catch`/`finally`. If a test needs setup, cleanup, or error handling, move it to a fixture, page object, or API client method instead.
+
+## Rules
+
+- Never write `try`, `catch`, or `finally` inside a `test(...)` body.
+- Resource cleanup (e.g. deleting a created record) belongs in fixture teardown — the code that runs after `await use(...)`.
+- If cleanup needs a value only known at runtime (e.g. a created id), have the fixture expose a tracking mechanism (an array, a registry) that the spec populates; the fixture drains it after `use(...)`.
+- Expected-failure assertions (e.g. an API call that should 401/404) are not error handling — just `await` the call and assert on the response/status; do not wrap it in `try/catch`.
+
+## Example
+
+```typescript
+// ❌ BAD — cleanup via try/finally in the spec
+test('creates a user', async ({ goRestUser }) => {
+  const created = await goRestUser.create(payload);
+  try {
+    // assertions...
+  } finally {
+    await goRestUser.delete(created.id);
+  }
+});
+```
+
+```typescript
+// ✅ GOOD — fixture owns cleanup
+// fixtures/api.ts
+createdUserIds: async ({ goRestUser }, use) => {
+  const ids: number[] = [];
+  await use(ids);
+  for (const id of ids) {
+    await goRestUser.delete(id);
+  }
+},
+```
+
+```typescript
+// tests/api/users.spec.ts
+test('creates a user', async ({ goRestUser, createdUserIds }) => {
+  const created = await goRestUser.create(payload);
+  createdUserIds.push(created.id);
+  // assertions...
+});
+```
