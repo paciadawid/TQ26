@@ -1,0 +1,21 @@
+---
+description: Keep changes scoped and simple; do not add unrequested abstractions
+alwaysApply: true
+---
+
+# Anti-Over-Engineering
+
+Only change what was asked. Prefer the simplest solution that matches existing Page Object Model and locator rules.
+
+## Do not
+
+- Touch unrelated files or rewrite a file for a small edit
+- Add helpers, wrappers, or new dependencies without a concrete need
+- Introduce extra page-object layers, base classes, or fixture indirection “for later”
+- Add error handling for cases that cannot happen in the current flow
+
+## Before finishing
+
+- Diff matches the request
+- No new abstraction exists unless the user asked for it or duplication is already real
+- When the design is ambiguous, ask instead of inventing architecture

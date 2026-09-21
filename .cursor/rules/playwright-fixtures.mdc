@@ -1,0 +1,58 @@
+---
+description: Use Playwright fixtures to inject page objects and auth state
+globs: "**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# Playwright Fixtures
+
+Specs import `test` and `expect` from a project fixtures module, not from `@playwright/test`. Fixtures construct page objects; specs do not call `new SomePage(page)`.
+
+## Layout
+
+- Fixtures: `fixtures/index.ts` (or `fixtures/test.ts`)
+- Page objects stay in `pages/**/*.ts`
+- Auth state (when needed): `playwright/.auth/*.json` via `storageState`
+
+## Rules
+
+- Extend the base test with typed fixtures that wrap page objects.
+- Keep fixture setup/teardown next to the fixture; do not duplicate it in every spec.
+- Prefer worker-scoped `storageState` for logged-in roles instead of UI login in each test.
+- Each test still gets an isolated `page` / context; do not share `page` across tests.
+
+## Example
+
+```typescript
+// fixtures/index.ts
+import { test as base, expect } from '@playwright/test';
+import { LoginPage } from '../pages/LoginPage';
+import { DashboardPage } from '../pages/DashboardPage';
+
+type MyFixtures = {
+  loginPage: LoginPage;
+  dashboardPage: DashboardPage;
+};
+
+export const test = base.extend<MyFixtures>({
+  loginPage: async ({ page }, use) => {
+    await use(new LoginPage(page));
+  },
+  dashboardPage: async ({ page }, use) => {
+    await use(new DashboardPage(page));
+  },
+});
+
+export { expect };
+```
+
+```typescript
+// tests/login.spec.ts
+import { test, expect } from '../fixtures';
+
+test('user can sign in', async ({ loginPage, dashboardPage }) => {
+  await loginPage.goto();
+  await loginPage.login(process.env.TEST_USER_EMAIL!, process.env.TEST_USER_PASSWORD!);
+  await expect(dashboardPage.heading).toBeVisible();
+});
+```

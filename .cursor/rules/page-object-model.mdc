@@ -1,0 +1,66 @@
+---
+description: Enforce Page Object Model for Playwright tests
+alwaysApply: false
+---
+# Page Object Model
+
+All UI interactions and locators belong in page objects. Specs orchestrate flows and assert outcomes only.
+
+## Layout
+
+- Page objects: `pages/**/*.ts` (e.g. `pages/HomePage.ts`)
+- Specs: `tests/**/*.spec.ts`
+- Shared flows: `pages` methods or fixtures — not duplicated locator chains in specs
+
+## Rules
+
+- Specs must not call `page.getBy*` / `page.locator` for product UI — use page object methods.
+- Each page object takes `page: Page` in the constructor and exposes intent-named methods (`login`, `openCart`).
+- Locators are private fields or private getters on the page object.
+- Do not put assertions inside page objects unless the method’s job is an expect helper; prefer asserting in the spec.
+
+## Example
+
+```typescript
+// pages/LoginPage.ts
+import { type Page, type Locator } from '@playwright/test';
+
+export class LoginPage {
+  private readonly email: Locator;
+  private readonly password: Locator;
+  private readonly submit: Locator;
+
+  constructor(private readonly page: Page) {
+    this.email = page.getByLabel('Email');
+    this.password = page.getByLabel('Password');
+    this.submit = page.getByRole('button', { name: 'Sign in' });
+  }
+
+  async goto() {
+    await this.page.goto('/login');
+  }
+
+  async login(email: string, password: string) {
+    await this.email.fill(email);
+    await this.password.fill(password);
+    await this.submit.click();
+  }
+}
+```
+
+```typescript
+// tests/login.spec.ts
+import { test, expect } from '@playwright/test';
+import { LoginPage } from '../pages/LoginPage';
+import { DashboardPage } from '../pages/DashboardPage';
+
+test('user can sign in', async ({ page }) => {
+  const loginPage = new LoginPage(page);
+  const dashboard = new DashboardPage(page);
+  await loginPage.goto();
+  await loginPage.login('user@example.com', 'secret');
+  await expect(dashboard.heading).toBeVisible();
+});
+```
+
+Expose assertion targets as `readonly` locators on the page object (e.g. `readonly heading: Locator`) when the spec needs `expect(...)`. Never inline product UI locators in the spec.

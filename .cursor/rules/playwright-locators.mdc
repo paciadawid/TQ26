@@ -1,0 +1,38 @@
+---
+description: Ban absolute XPath; require Playwright built-in locators
+globs: "**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# Playwright Locators
+
+Never use absolute XPath. Prefer Playwright’s built-in locators, in this order:
+
+1. `getByRole`
+2. `getByLabel` / `getByPlaceholder` / `getByText`
+3. `getByTestId`
+4. `getByAltText` / `getByTitle`
+5. CSS via `page.locator(...)` only when the above cannot express the target
+
+## Forbidden
+
+```typescript
+// ❌ Absolute XPath
+page.locator('xpath=/html/body/div[1]/form/button[2]')
+page.locator('//*[@id="root"]/div/div[3]/button')
+page.$x('/html/body/...')
+```
+
+## Required
+
+```typescript
+// ✅ Role / label / test id
+page.getByRole('button', { name: 'Submit' })
+page.getByLabel('Email')
+page.getByTestId('checkout-submit')
+
+// ✅ Scoped CSS (relative, intentional) when needed
+page.locator('[data-qa="cart"] .line-item')
+```
+
+Relative XPath (`xpath=//button[@type="submit"]`) is a last resort only when no Playwright locator or stable CSS exists — never absolute paths from `/html` or `/body`.
