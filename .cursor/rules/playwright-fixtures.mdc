@@ -12,16 +12,161 @@ Specs import `test` and `expect` from a project fixtures module, not from `@play
 
 - Fixtures: `fixtures/index.ts` (or `fixtures/test.ts`)
 - Page objects stay in `pages/**/*.ts`
-- Auth state (when needed): `playwright/.auth/*.json` via `storageState`
+- Auth state (when needed): a worker-scoped fixture writes to
+  `<project.outputDir>/.auth/<parallelIndex>.json` and overrides the built-in
+  `storageState` fixture — see the login-once-per-worker example below.
 
 ## Rules
 
 - Extend the base test with typed fixtures that wrap page objects.
 - Keep fixture setup/teardown next to the fixture; do not duplicate it in every spec.
 - Prefer worker-scoped `storageState` for logged-in roles instead of UI login in each test.
+- Implement "log in once" as a worker-scoped fixture inside the fixtures module
+  (see example). Do **not** reach for a separate `*.setup.ts` file plus a
+  dependent Playwright project for this — it adds config and an extra
+  "test" that isn't actually a test, for something a fixture already handles.
 - Each test still gets an isolated `page` / context; do not share `page` across tests.
+- If tests under a logged-in role mutate shared state (cart, wishlist, profile,
+  etc.), do not log every worker into the **same** account — parallel workers
+  (and other people/CI runs hitting a shared demo site) will contend for that
+  state and cause flaky failures. Seed a fresh, disposable account per worker
+  instead (see the registration example below).
 
-## Example
+## Example: log in once per worker
+
+```typescript
+// fixtures/index.ts
+import { existsSync, mkdirSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { test as base, expect } from '@playwright/test';
+import { LoginPage } from '../pages/LoginPage';
+
+type MyWorkerFixtures = {
+  workerStorageStatePath: string;
+};
+
+export const test = base.extend<{}, MyWorkerFixtures>({
+  storageState: async ({ workerStorageStatePath }, use) => {
+    await use(workerStorageStatePath);
+  },
+  workerStorageStatePath: [
+    async ({ browser }, use, workerInfo) => {
+      const fileName = resolve(
+        workerInfo.project.outputDir,
+        `.auth/${workerInfo.parallelIndex}.json`,
+      );
+
+      if (!existsSync(fileName)) {
+        const page = await browser.newPage({
+          baseURL: workerInfo.project.use.baseURL,
+          storageState: undefined,
+        });
+        const loginPage = new LoginPage(page);
+        await loginPage.goto();
+        await loginPage.login(process.env.TEST_USER_EMAIL!, process.env.TEST_USER_PASSWORD!);
+        await expect(loginPage.headerLoginLink).toBeHidden();
+
+        mkdirSync(dirname(fileName), { recursive: true });
+        await page.context().storageState({ path: fileName });
+        await page.close();
+      }
+
+      await use(fileName);
+    },
+    { scope: 'worker' },
+  ],
+});
+
+export { expect };
+```
+
+Notes:
+
+- `browser.newPage()` does not inherit the project's `use` options — pass
+  `baseURL` explicitly so page objects can still `goto('/login')`.
+- Caching on `existsSync(fileName)` means the login only runs the first time
+  each worker needs it; later tests on that worker reuse the file.
+- `<project.outputDir>` (e.g. `test-results/<project>/`) is already gitignored,
+  so no extra `.gitignore`/eslint-ignore entries are needed for the auth file.
+
+## Example: seed a fresh account per worker
+
+Same worker-scoped `storageState` shape as above, but instead of logging into
+one shared account, register a new disposable account per worker. This is the
+right call whenever the logged-in flow under test mutates shared state (e.g. a
+shopping cart) — each worker gets its own private account, so parallel runs
+(and other traffic against a shared demo site) can never step on each other:
+
+```typescript
+// fixtures/index.ts
+import { existsSync, mkdirSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { randomUUID } from 'node:crypto';
+import { test as base, expect } from '@playwright/test';
+import { RegisterPage } from '../pages/RegisterPage';
+
+// Public demo/sandbox site; seeded accounts hold no real user data, so a
+// fixed password in plaintext is fine here.
+const SEEDED_USER_PASSWORD = 'Test1234!';
+
+type MyWorkerFixtures = {
+  workerStorageStatePath: string;
+};
+
+export const test = base.extend<{}, MyWorkerFixtures>({
+  storageState: async ({ workerStorageStatePath }, use) => {
+    await use(workerStorageStatePath);
+  },
+  workerStorageStatePath: [
+    async ({ browser }, use, workerInfo) => {
+      const fileName = resolve(
+        workerInfo.project.outputDir,
+        `.auth/${workerInfo.parallelIndex}.json`,
+      );
+
+      if (!existsSync(fileName)) {
+        const page = await browser.newPage({
+          baseURL: workerInfo.project.use.baseURL,
+          storageState: undefined,
+        });
+
+        const username = `pw-worker-${workerInfo.parallelIndex}-${randomUUID().slice(0, 8)}`;
+        const registerPage = new RegisterPage(page);
+        await registerPage.goto();
+        await registerPage.register(
+          username,
+          `${username}@example.com`,
+          SEEDED_USER_PASSWORD,
+        );
+        await expect(registerPage.headerLoginLink).toBeHidden();
+
+        mkdirSync(dirname(fileName), { recursive: true });
+        await page.context().storageState({ path: fileName });
+        await page.close();
+      }
+
+      await use(fileName);
+    },
+    { scope: 'worker' },
+  ],
+});
+
+export { expect };
+```
+
+Notes:
+
+- The username embeds `parallelIndex` (for readability in traces/network logs)
+  plus a random suffix (so re-runs against a site that persists accounts
+  forever never collide with a previous run's account).
+- Only seed a new account when registration auto-logs the user in (verify
+  this manually first). If it doesn't, log in with the same credentials right
+  after registering.
+- The account is cached for the worker's lifetime via `existsSync(fileName)`,
+  same as the shared-login example — this is "one private account per worker",
+  not "a new account for every single test".
+
+## Example: page object fixtures
 
 ```typescript
 // fixtures/index.ts
