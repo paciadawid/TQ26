@@ -25,33 +25,45 @@ test.describe('GoRest users', () => {
     }
   });
 
-  test('should create a user that is readable with a token and hidden without one', async ({
-    goRestUser,
-    unauthenticatedGoRestUser,
-    createdUserIds,
-  }) => {
-    const payload: CreateUserDto = {
-      name: 'Ada Lovelace',
-      email: `ada.lovelace.${randomUUID()}@example.com`,
-      gender: 'female',
-      status: 'active',
-    };
+  test.describe('created user', () => {
+    let payload: CreateUserDto;
+    let created: UserDto;
 
-    const createResponse = await goRestUser.create(payload);
-    expect(createResponse.status()).toBe(201);
+    test.beforeEach(async ({ goRestUser, createdUserIds }) => {
+      payload = {
+        name: 'Ada Lovelace',
+        email: `ada.lovelace.${randomUUID()}@example.com`,
+        gender: 'female',
+        status: 'active',
+      };
 
-    const created: UserDto = await createResponse.json();
-    createdUserIds.push(created.id);
-    expect(created).toMatchObject(payload);
-    expect(typeof created.id).toBe('number');
+      const createResponse = await goRestUser.create(payload);
+      expect(createResponse.status()).toBe(201);
 
-    const getResponse = await goRestUser.getById(created.id);
-    expect(getResponse.status()).toBe(200);
-    expect(await getResponse.json()).toEqual(created);
+      created = await createResponse.json();
+      createdUserIds.push(created.id);
+    });
 
-    const unauthenticatedResponse = await unauthenticatedGoRestUser.getById(
-      created.id,
-    );
-    expect(unauthenticatedResponse.status()).toBe(404);
+    test('should create a user with the requested fields', () => {
+      expect(created).toMatchObject(payload);
+      expect(typeof created.id).toBe('number');
+    });
+
+    test('should let a token-authenticated request read the created user', async ({
+      goRestUser,
+    }) => {
+      const response = await goRestUser.getById(created.id);
+
+      expect(response.status()).toBe(200);
+      expect(await response.json()).toEqual(created);
+    });
+
+    test('should hide the created user from unauthenticated requests', async ({
+      unauthenticatedGoRestUser,
+    }) => {
+      const response = await unauthenticatedGoRestUser.getById(created.id);
+
+      expect(response.status()).toBe(404);
+    });
   });
 });
