@@ -15,6 +15,7 @@ export default defineConfig({
   reporter: 'html',
   use: {
     trace: 'on',
+    video: 'on',
   },
 
   projects: [
@@ -24,7 +25,6 @@ export default defineConfig({
       use: {
         ...devices['Desktop Chrome'],
         baseURL: 'https://bearstore-testsite.smartbear.com',
-        video: 'on',
       },
     },
     {
@@ -38,7 +38,6 @@ export default defineConfig({
             ? { Authorization: `Bearer ${GOREST_ACCESS_TOKEN}` }
             : {}),
         },
-        video: 'off',
       },
     },
   ],

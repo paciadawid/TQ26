@@ -1,0 +1,29 @@
+---
+description: Run Playwright tests successfully 3 times locally before any git push
+alwaysApply: true
+---
+
+# Local Test Gate Before Push
+
+Never push to GitHub until the relevant Playwright suite has passed **3 consecutive times** locally.
+
+## When this applies
+
+- Before `git push` / `gh` push of any branch that includes test or product-UI changes
+- Before creating a PR that depends on those changes being green
+
+## Required steps
+
+1. Run the relevant tests locally (prefer the changed specs; use full suite when unsure):
+   ```bash
+   rtk npx playwright test
+   ```
+2. Repeat until you have **3 consecutive successful runs** with exit code `0`.
+3. If any run fails, fix the issue, then restart the count from zero.
+4. Only after 3 consecutive passes, push (and open a PR if asked).
+
+## Do not
+
+- Push after a single green run
+- Count failed or flaky runs toward the 3
+- Skip re-running after a fix — a fix resets the streak
