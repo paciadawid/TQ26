@@ -1,0 +1,49 @@
+---
+description: Structure Playwright E2E tests for isolation, auto-wait, and route mocks
+globs: "**/*.spec.ts"
+alwaysApply: false
+---
+
+# Playwright E2E Structure
+
+Write independent, auto-waiting E2E tests. Specs orchestrate flows and assert outcomes; locators stay in page objects.
+
+## Rules
+
+- Group related cases with `test.describe` and put shared navigation/setup in `test.beforeEach`.
+- One clear behavior per test. Name tests by expected outcome (`should show an error for invalid credentials`).
+- Cover the success path and at least one failure/error path for critical flows.
+- Tests must not depend on execution order or leftover UI/server state.
+- Use Playwright auto-waiting and web-first assertions (`toBeVisible`, `toHaveURL`). Never `waitForTimeout` in committed tests.
+- Isolate third-party or unstable APIs with `page.route` when the test is about UI behavior, not the real backend.
+- Keep a spec focused (about 3–5 tests per feature file). Do not assert CSS/visual styles.
+
+## Example
+
+```typescript
+import { test, expect } from '../fixtures';
+
+test.describe('Login', () => {
+  test.beforeEach(async ({ loginPage, page }) => {
+    await page.route('**/api/login', async (route) => {
+      const body = route.request().postDataJSON() as { email?: string };
+      if (body.email === 'user@example.com') {
+        await route.fulfill({ status: 200, body: JSON.stringify({ ok: true }) });
+        return;
+      }
+      await route.fulfill({ status: 401, body: JSON.stringify({ error: 'Invalid credentials' }) });
+    });
+    await loginPage.goto();
+  });
+
+  test('should sign in with valid credentials', async ({ loginPage, dashboardPage }) => {
+    await loginPage.login(process.env.TEST_USER_EMAIL!, process.env.TEST_USER_PASSWORD!);
+    await expect(dashboardPage.heading).toBeVisible();
+  });
+
+  test('should show an error for invalid credentials', async ({ loginPage }) => {
+    await loginPage.login('wrong@example.com', 'bad-password');
+    await expect(loginPage.errorMessage).toBeVisible();
+  });
+});
+```

@@ -1,0 +1,34 @@
+---
+description: Use Conventional Commits when writing git commit messages
+alwaysApply: false
+---
+
+# Conventional Commits
+
+When creating a git commit, use:
+
+```
+<type>[optional scope]: <description>
+```
+
+## Types for this repo
+
+- `test`: new or updated tests, page objects, fixtures
+- `fix`: bug fix in tests or config
+- `feat`: new coverage, tooling, or workflow
+- `refactor`: structure change with no behavior change
+- `ci`: GitHub Actions / Playwright CI config
+- `docs`: README or comments
+- `chore`: deps, ignore files, housekeeping
+
+## Style
+
+- Imperative, lowercase description, no trailing period
+- Scope optional: `test(login):`, `ci(playwright):`
+- Explain why in the body only when the subject is not enough
+
+```
+test(login): cover invalid credentials path
+
+Add a mocked 401 case so the error banner is asserted independently of the API.
+```
