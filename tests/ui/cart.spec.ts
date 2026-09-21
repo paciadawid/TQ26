@@ -6,6 +6,10 @@ test.describe('Shopping cart', () => {
     await cartPage.removeAllItems();
   });
 
+  test.afterEach(async ({ cartPage }) => {
+    await cartPage.removeAllItems();
+  });
+
   test('should show the correct total after adding two products', async ({
     homePage,
     searchResultsPage,

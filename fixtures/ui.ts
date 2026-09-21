@@ -4,7 +4,6 @@ import { randomUUID } from 'node:crypto';
 import { test as base, expect } from '@playwright/test';
 import { HomePage } from '../pages/HomePage';
 import { SearchResultsPage } from '../pages/SearchResultsPage';
-import { LoginPage } from '../pages/LoginPage';
 import { RegisterPage } from '../pages/RegisterPage';
 import { ProductPage } from '../pages/ProductPage';
 import { CartPage } from '../pages/CartPage';
@@ -16,8 +15,6 @@ const SEEDED_USER_PASSWORD = 'Test1234!';
 type UiFixtures = {
   homePage: HomePage;
   searchResultsPage: SearchResultsPage;
-  loginPage: LoginPage;
-  registerPage: RegisterPage;
   productPage: ProductPage;
   cartPage: CartPage;
 };
@@ -69,12 +66,6 @@ export const test = base.extend<UiFixtures, UiWorkerFixtures>({
   },
   searchResultsPage: async ({ page }, use) => {
     await use(new SearchResultsPage(page));
-  },
-  loginPage: async ({ page }, use) => {
-    await use(new LoginPage(page));
-  },
-  registerPage: async ({ page }, use) => {
-    await use(new RegisterPage(page));
   },
   productPage: async ({ page }, use) => {
     await use(new ProductPage(page));

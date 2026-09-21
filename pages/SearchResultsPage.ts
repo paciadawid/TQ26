@@ -11,5 +11,8 @@ export class SearchResultsPage {
 
   async openProduct(name: string): Promise<void> {
     await this.page.getByRole('link', { name, exact: true }).click();
+    // Ensure the product page's scripts have finished loading before callers
+    // interact with it (e.g. clicking "Add to cart").
+    await this.page.waitForLoadState('load');
   }
 }
