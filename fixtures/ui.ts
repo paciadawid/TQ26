@@ -7,6 +7,7 @@ import { SearchResultsPage } from '../pages/SearchResultsPage';
 import { RegisterPage } from '../pages/RegisterPage';
 import { ProductPage } from '../pages/ProductPage';
 import { CartPage } from '../pages/CartPage';
+import { CheckoutPage } from '../pages/CheckoutPage';
 
 // BearStore is a public SmartBear demo/sandbox site; seeded accounts hold no
 // real user data, so a fixed password in plaintext is fine here.
@@ -17,6 +18,7 @@ type UiFixtures = {
   searchResultsPage: SearchResultsPage;
   productPage: ProductPage;
   cartPage: CartPage;
+  checkoutPage: CheckoutPage;
 };
 
 type UiWorkerFixtures = {
@@ -72,6 +74,9 @@ export const test = base.extend<UiFixtures, UiWorkerFixtures>({
   },
   cartPage: async ({ page }, use) => {
     await use(new CartPage(page));
+  },
+  checkoutPage: async ({ page }, use) => {
+    await use(new CheckoutPage(page));
   },
 });
 
