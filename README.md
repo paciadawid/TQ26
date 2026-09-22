@@ -86,3 +86,24 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on every push/PR to `main`:
 ## Agent skills
 
 This repo ships with Cursor agent skills (`.cursor/skills/`) that automate the test lifecycle end to end: writing a new spec, self-reviewing it against these standards, gating on 3 green runs, opening a PR, and self-healing red CI — see `add-test`, `pr-code-review`, `fix-test`, `self-heal`, and `ship-test`.
+
+`ship-test` is the orchestrator that chains the rest together:
+
+```mermaid
+flowchart TD
+    A["add-test\n(pick surface, write spec)"] --> B["pr-code-review\n(Standards axis)"]
+    B -- blocking findings --> A
+    B -- clean --> C["3x green run\n+ lint/typecheck"]
+    C --> D["commit, push,\nopen PR"]
+    D --> E{"CI result"}
+    E -- green --> F(["Done — report PR"])
+    E -- red --> G["self-heal\n(uses fix-test's\ndiagnose + fix steps)"]
+    G --> D
+    G -- 3 attempts exhausted --> H(["Report on PR, stop"])
+
+    U(["/review request"]) -.-> B
+    V(["/fix-test request"]) -.-> G
+```
+
+- **Solid path**: the `/ship-test` pipeline — write → self-review → gate → ship → watch CI → self-heal on red, looping until green or the 3-attempt guard trips.
+- **Dashed lines**: `pr-code-review` and `fix-test` also work as standalone skills, not just steps inside `ship-test`.
