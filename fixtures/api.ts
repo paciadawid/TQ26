@@ -1,8 +1,12 @@
 import { test as base, expect } from '@playwright/test';
 import { GoRestUser } from '../api/GoRestUser';
+import { GoRestPost } from '../api/GoRestPost';
+import { GoRestComment } from '../api/GoRestComment';
 
 type ApiFixtures = {
   goRestUser: GoRestUser;
+  goRestPost: GoRestPost;
+  goRestComment: GoRestComment;
   unauthenticatedGoRestUser: GoRestUser;
   createdUserIds: number[];
 };
@@ -10,6 +14,12 @@ type ApiFixtures = {
 export const test = base.extend<ApiFixtures>({
   goRestUser: async ({ request }, use) => {
     await use(new GoRestUser(request));
+  },
+  goRestPost: async ({ request }, use) => {
+    await use(new GoRestPost(request));
+  },
+  goRestComment: async ({ request }, use) => {
+    await use(new GoRestComment(request));
   },
   unauthenticatedGoRestUser: async ({ playwright }, use, testInfo) => {
     const context = await playwright.request.newContext({
